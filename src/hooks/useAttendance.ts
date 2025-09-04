@@ -7,15 +7,11 @@ export const useAttendance = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAttendance = async (username: string, password: string) => {
+  const fetchAttendance = async () => {
     setIsLoading(true);
     setError(null);
     
     try {
-      const loginSuccess = await attendanceService.login(username, password);
-      if (!loginSuccess) {
-        throw new Error('Invalid username or password');
-      }
 
       const data = await attendanceService.getAttendanceData();
       if ('error' in data) {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, TrendingUp, Users, Clock, Target, Award } from 'lucide-react';
+import { Calendar, TrendingUp, Users, Clock, Target, Award, RefreshCw } from 'lucide-react';
 import { AttendanceData } from '../types/attendance';
 import { AttendanceCalendar } from './AttendanceCalendar';
 import { SubjectCard } from './SubjectCard';
@@ -7,9 +7,10 @@ import { StatsCard } from './StatsCard';
 
 interface DashboardProps {
   data: AttendanceData;
+  onRefresh?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ data, onRefresh }) => {
   const subjects = Object.values(data.subjects);
   const calendarData = Object.entries(data.dateAttendance).map(([date, attendance]) => ({
     date,
@@ -18,6 +19,20 @@ export const Dashboard: React.FC<DashboardProps> = ({ data }) => {
 
   return (
     <div className="space-y-8">
+      {/* Header with Refresh Button */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Attendance Dashboard</h1>
+        {onRefresh && (
+          <button
+            onClick={onRefresh}
+            className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors duration-200"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh Data</span>
+          </button>
+        )}
+      </div>
+
       {/* Overview Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard

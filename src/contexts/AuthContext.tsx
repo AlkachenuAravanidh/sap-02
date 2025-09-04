@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types/attendance';
+import { attendanceService } from '../services/attendanceService';
+import { labService } from '../services/labService';
 
 interface AuthContextType {
   user: User | null;
@@ -33,8 +35,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (username: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API call - replace with actual authentication
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Use the real attendance service for authentication
+      const success = await attendanceService.login(username, password);
+      
+      if (!success) {
+        return false;
+      }
+      
+      // Set credentials for lab service as well
+      labService.setCredentials(username, password);
       
       const userData: User = {
         username,
@@ -54,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
+    attendanceService.logout();
     localStorage.removeItem('user');
     localStorage.removeItem('attendanceData');
   };

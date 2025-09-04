@@ -12,36 +12,41 @@ const AppContent: React.FC = () => {
   const { user } = useAuth();
   const { attendanceData, isLoading, error, fetchAttendance } = useAttendance();
   const [currentView, setCurrentView] = useState<'dashboard' | 'lab' | 'profile'>('dashboard');
-  const [hasInitialLoad, setHasInitialLoad] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   useEffect(() => {
-    if (user && !hasInitialLoad && !attendanceData) {
-      // Auto-fetch attendance data on login if not already available
+    if (user && !attendanceData && !isInitializing) {
+      // Auto-fetch attendance data on login
       const storedData = localStorage.getItem('attendanceData');
       if (!storedData) {
-        // In a real app, you'd have stored credentials securely
-        // For now, we'll just load stored data if available
-        setHasInitialLoad(true);
-      } else {
-        setHasInitialLoad(true);
+        setIsInitializing(true);
+        fetchAttendance().finally(() => setIsInitializing(false));
       }
     }
-  }, [user, hasInitialLoad, attendanceData]);
+  }, [user, attendanceData, isInitializing, fetchAttendance]);
 
   if (!user) {
     return <LoginForm />;
   }
 
-  if (isLoading) {
+  if (isLoading || isInitializing) {
     return <LoadingSpinner message="Fetching your attendance data..." />;
   }
 
   const renderCurrentView = () => {
     switch (currentView) {
       case 'dashboard':
-        return attendanceData ? <Dashboard data={attendanceData} /> : (
+        return attendanceData ? (
+          <Dashboard data={attendanceData} onRefresh={fetchAttendance} />
+        ) : (
           <div className="text-center py-12">
-            <p className="text-gray-600">No attendance data available. Please refresh or contact support.</p>
+            <p className="text-gray-600 mb-4">No attendance data available.</p>
+            <button
+              onClick={fetchAttendance}
+              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors duration-200"
+            >
+              Fetch Attendance Data
+            </button>
           </div>
         );
       case 'lab':
@@ -60,7 +65,15 @@ const AppContent: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {error && (
           <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-700">{error}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-red-700">{error}</p>
+              <button
+                onClick={fetchAttendance}
+                className="text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors duration-200"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         )}
         {renderCurrentView()}

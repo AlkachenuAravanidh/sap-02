@@ -1,52 +1,93 @@
+import jsPDF from 'jspdf';
+
 export const compressImagesToPdf = async (imageFiles: File[], maxSizeMB: number = 1): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     try {
-      // Create a canvas to process images
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Canvas context not available'));
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      let processedCount = 0;
+      const totalFiles = imageFiles.length;
+
+      if (totalFiles === 0) {
+        reject(new Error('No images provided'));
         return;
       }
 
-      // Set A4 dimensions (595 x 842 points)
-      const pageWidth = 595;
-      const pageHeight = 842;
-      canvas.width = pageWidth;
-      canvas.height = pageHeight;
-
-      const processedImages: string[] = [];
-      let processedCount = 0;
-
       imageFiles.forEach((file, index) => {
         const img = new Image();
+        
         img.onload = () => {
-          // Clear canvas
-          ctx.fillStyle = 'white';
-          ctx.fillRect(0, 0, pageWidth, pageHeight);
+          try {
+            // Add new page for each image (except the first one)
+            if (index > 0) {
+              pdf.addPage();
+            }
 
-          // Calculate scaling to fit page
-          const scaleW = (pageWidth - 40) / img.width;
-          const scaleH = (pageHeight - 40) / img.height;
-          const scale = Math.min(scaleW, scaleH, 1.0);
+            // Calculate dimensions to fit A4 page with margins
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const margin = 10;
+            const maxWidth = pageWidth - (margin * 2);
+            const maxHeight = pageHeight - (margin * 2);
 
-          const newWidth = img.width * scale;
-          const newHeight = img.height * scale;
-          const x = (pageWidth - newWidth) / 2;
-          const y = (pageHeight - newHeight) / 2;
+            // Calculate scaling to maintain aspect ratio
+            const imgAspectRatio = img.width / img.height;
+            let imgWidth = maxWidth;
+            let imgHeight = maxWidth / imgAspectRatio;
 
-          ctx.drawImage(img, x, y, newWidth, newHeight);
-          
-          // Convert to base64 with compression
-          const quality = 0.8;
-          const dataUrl = canvas.toDataURL('image/jpeg', quality);
-          processedImages[index] = dataUrl;
-          processedCount++;
+            if (imgHeight > maxHeight) {
+              imgHeight = maxHeight;
+              imgWidth = maxHeight * imgAspectRatio;
+            }
 
-          if (processedCount === imageFiles.length) {
-            // Create simple PDF-like structure (for demo - in production use proper PDF library)
-            const pdfContent = this.createSimplePdf(processedImages);
-            resolve(new Blob([pdfContent], { type: 'application/pdf' }));
+            // Center the image on the page
+            const x = (pageWidth - imgWidth) / 2;
+            const y = (pageHeight - imgHeight) / 2;
+
+            // Add image to PDF
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              const imgData = canvas.toDataURL('image/jpeg', 0.8);
+              pdf.addImage(imgData, 'JPEG', x, y, imgWidth, imgHeight);
+            }
+
+            processedCount++;
+
+            if (processedCount === totalFiles) {
+              // Generate PDF blob
+              const pdfBlob = pdf.output('blob');
+              
+              // Check size and compress if needed
+              if (pdfBlob.size > maxSizeMB * 1024 * 1024) {
+                // Create a new PDF with lower quality
+                const compressedPdf = new jsPDF('p', 'mm', 'a4');
+                
+                imageFiles.forEach((file, idx) => {
+                  if (idx > 0) compressedPdf.addPage();
+                  
+                  const canvas = document.createElement('canvas');
+                  const ctx = canvas.getContext('2d');
+                  canvas.width = img.width * 0.7; // Reduce resolution
+                  canvas.height = img.height * 0.7;
+                  
+                  if (ctx) {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const imgData = canvas.toDataURL('image/jpeg', 0.6); // Lower quality
+                    compressedPdf.addImage(imgData, 'JPEG', x, y, imgWidth * 0.8, imgHeight * 0.8);
+                  }
+                });
+                
+                resolve(compressedPdf.output('blob'));
+              } else {
+                resolve(pdfBlob);
+              }
+            }
+          } catch (error) {
+            reject(error);
           }
         };
 
@@ -56,20 +97,8 @@ export const compressImagesToPdf = async (imageFiles: File[], maxSizeMB: number 
 
         img.src = URL.createObjectURL(file);
       });
-
-      if (imageFiles.length === 0) {
-        reject(new Error('No images provided'));
-      }
     } catch (error) {
       reject(error);
     }
   });
 };
-
-// Simple PDF creation (in production, use a proper PDF library like jsPDF)
-function createSimplePdf(images: string[]): string {
-  // This is a simplified approach - in production use jsPDF or similar
-  const pdfHeader = '%PDF-1.4\n';
-  const pdfContent = images.map((img, i) => `Image ${i + 1}: ${img.substring(0, 100)}...`).join('\n');
-  return pdfHeader + pdfContent;
-}

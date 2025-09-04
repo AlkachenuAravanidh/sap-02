@@ -18,7 +18,8 @@ export const AttendanceCalendar: React.FC<AttendanceCalendarProps> = ({ data }) 
 
   const getAttendanceForDate = (date: Date) => {
     const dateStr = format(date, 'dd-MM-yyyy');
-    return data.find(d => d.date === format(date, 'yyyy-MM-dd') || d.date === dateStr);
+    const isoDateStr = format(date, 'yyyy-MM-dd');
+    return data.find(d => d.date === isoDateStr || d.date === dateStr);
   };
 
   const getDateColor = (date: Date) => {
